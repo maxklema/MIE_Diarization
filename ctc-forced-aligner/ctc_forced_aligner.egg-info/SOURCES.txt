@@ -1,0 +1,14 @@
+README.md
+pyproject.toml
+setup.py
+ctc_forced_aligner/__init__.py
+ctc_forced_aligner/align.py
+ctc_forced_aligner/alignment_utils.py
+ctc_forced_aligner/forced_align_impl.cpp
+ctc_forced_aligner/norm_config.py
+ctc_forced_aligner/text_utils.py
+ctc_forced_aligner.egg-info/PKG-INFO
+ctc_forced_aligner.egg-info/SOURCES.txt
+ctc_forced_aligner.egg-info/dependency_links.txt
+ctc_forced_aligner.egg-info/not-zip-safe
+ctc_forced_aligner.egg-info/top_level.txt
