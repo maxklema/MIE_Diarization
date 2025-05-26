@@ -23,22 +23,22 @@ pip install cython
 or
 
 sudo apt update && sudo apt install cython3
-# on Ubuntu or Debian
+on Ubuntu or Debian
 sudo apt update && sudo apt install ffmpeg
 
-# on Arch Linux
+on Arch Linux
 sudo pacman -S ffmpeg
 
-# on MacOS using Homebrew (https://brew.sh/)
+on MacOS using Homebrew (https://brew.sh/)
 brew install ffmpeg
 
-# on Windows using Chocolatey (https://chocolatey.org/)
+on Windows using Chocolatey (https://chocolatey.org/)
 choco install ffmpeg
 
-# on Windows using Scoop (https://scoop.sh/)
+on Windows using Scoop (https://scoop.sh/)
 scoop install ffmpeg
 
-# on Windows using WinGet (https://github.com/microsoft/winget-cli)
+on Windows using WinGet (https://github.com/microsoft/winget-cli)
 winget install ffmpeg
 pip install -c constraints.txt -r requirements.txt
 Usage
