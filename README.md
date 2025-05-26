@@ -20,9 +20,11 @@ Python >= 3.10 is needed, 3.9 will work but you'll need to manually install the 
 FFMPEG and Cython are needed as prerequisites to install the requirements
 
 pip install cython
-or
 
+or
 sudo apt update && sudo apt install cython3
+
+-----------------------------------------------------
 on Ubuntu or Debian
 sudo apt update && sudo apt install ffmpeg
 
