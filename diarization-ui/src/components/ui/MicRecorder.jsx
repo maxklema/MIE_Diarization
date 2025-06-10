@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "./button";
-import AudioUploader from "./AudioUploader";
 
 const MicRecorderComponent = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioURL, setAudioURL] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const canvasRef = useRef(null);
@@ -13,6 +13,7 @@ const MicRecorderComponent = () => {
   const dataArrayRef = useRef(null);
   const audioCtxRef = useRef(null);
   const sourceRef = useRef(null);
+  const audioElementRef = useRef(null);
 
   const drawWave = () => {
     if (!canvasRef.current || !analyserRef.current) return;
@@ -97,6 +98,14 @@ const MicRecorderComponent = () => {
     }
   };
 
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setAudioURL(url);
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
@@ -112,43 +121,48 @@ const MicRecorderComponent = () => {
         <Button
           onClick={startRecording}
           disabled={isRecording}
-          className={`${
-            isRecording ? "bg-green-300" : "bg-green-500"
-          } text-white px-4 py-2 rounded disabled:opacity-50`}
+          className={`${isRecording ? "bg-green-300" : "bg-green-500"
+            } text-white px-4 py-2 rounded disabled:opacity-50`}
         >
           Start Recording
         </Button>
         <Button
           onClick={stopRecording}
           disabled={!isRecording}
-          className={`${
-            isRecording ? "bg-red-500" : "bg-red-300"
-          } text-white px-4 py-2 rounded disabled:opacity-50`}
+          className={`${isRecording ? "bg-red-500" : "bg-red-300"
+            } text-white px-4 py-2 rounded disabled:opacity-50`}
         >
           Stop Recording
         </Button>
+        <label htmlFor="file-upload" title="Upload Audio" className="flex flex-col items-center gap-2 cursor-pointer">
+          <img src="/upload-icon.png" alt="Upload" className="w-6 h-6" />
+          <span className="text-xs text-gray-700">Upload Audio</span>
+          <input id="file-upload" type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
+        </label>
       </div>
       {audioURL && (
         <audio
           controls
           src={audioURL}
           className="mt-4 w-full rounded-md"
+          ref={audioElementRef}
           onPlay={() => {
-            const audio = new Audio(audioURL);
-            audioCtxRef.current = new AudioContext();
-            sourceRef.current = audioCtxRef.current.createMediaElementSource(audio);
-            analyserRef.current = audioCtxRef.current.createAnalyser();
-            analyserRef.current.fftSize = 2048;
-            const bufferLength = analyserRef.current.fftSize;
-            dataArrayRef.current = new Uint8Array(bufferLength);
-            sourceRef.current.connect(analyserRef.current);
-            analyserRef.current.connect(audioCtxRef.current.destination);
-            drawWave();
-            audio.play();
+            if (audioElementRef.current && !isPlaying) {
+              audioCtxRef.current = new AudioContext();
+              sourceRef.current = audioCtxRef.current.createMediaElementSource(audioElementRef.current);
+              analyserRef.current = audioCtxRef.current.createAnalyser();
+              analyserRef.current.fftSize = 2048;
+              const bufferLength = analyserRef.current.fftSize;
+              dataArrayRef.current = new Uint8Array(bufferLength);
+              sourceRef.current.connect(analyserRef.current);
+              analyserRef.current.connect(audioCtxRef.current.destination);
+              drawWave();
+              setIsPlaying(true);
+            }
           }}
+          onPause={() => setIsPlaying(false)}
         />
       )}
-            <AudioUploader />
     </div>
   );
 };
