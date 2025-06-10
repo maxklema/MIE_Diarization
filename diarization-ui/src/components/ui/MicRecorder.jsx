@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "./button";
+import AudioUploader from "./AudioUploader";
 
 const MicRecorderComponent = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -147,6 +148,7 @@ const MicRecorderComponent = () => {
           }}
         />
       )}
+            <AudioUploader />
     </div>
   );
 };
