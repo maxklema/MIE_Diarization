@@ -81,6 +81,21 @@ const MicRecorderComponent = () => {
       const url = URL.createObjectURL(audioBlob);
       setAudioURL(url);
 
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'recording.webm');
+
+      fetch('http://127.0.0.1:5000/api/diarize', {
+        method: 'POST',
+        body: formData,
+      })
+        .then(response => response.json())
+        .then(data => {
+          console.log("Diarization result:", data);
+        })
+        .catch(error => {
+          console.error("Error sending audio to backend:", error);
+        });
+
       cancelAnimationFrame(animationRef.current);
       if (analyserRef.current) analyserRef.current.disconnect();
       if (sourceRef.current) sourceRef.current.disconnect();
@@ -103,6 +118,21 @@ const MicRecorderComponent = () => {
     if (file) {
       const url = URL.createObjectURL(file);
       setAudioURL(url);
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      fetch('http://127.0.0.1:5000/api/diarize', {
+        method: 'POST',
+        body: formData,
+      })
+        .then(response => response.json())
+        .then(data => {
+          console.log("Diarization result:", data);
+        })
+        .catch(error => {
+          console.error("Error sending uploaded audio to backend:", error);
+        });
     }
   };
 
@@ -139,6 +169,35 @@ const MicRecorderComponent = () => {
           <span className="text-xs text-gray-700">Upload Audio</span>
           <input id="file-upload" type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
         </label>
+      </div>
+      <div className="mt-4">
+        <Button
+          onClick={async () => {
+            if (!audioURL) return alert("Please record or upload an audio file first.");
+
+            try {
+              const response = await fetch(audioURL);
+              const blob = await response.blob();
+              const formData = new FormData();
+              formData.append("audio", blob, "recording.webm");
+
+              const res = await fetch("http://127.0.0.1:5000/api/diarize", {
+                method: "POST",
+                body: formData,
+              });
+
+              const data = await res.json();
+              console.log("Diarization result:", data);
+              alert("Diarization complete. Check console for result.");
+            } catch (err) {
+              console.error("Error during diarization:", err);
+              alert("Diarization failed. Check console for error.");
+            }
+          }}
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          Diarize
+        </Button>
       </div>
       {audioURL && (
         <audio

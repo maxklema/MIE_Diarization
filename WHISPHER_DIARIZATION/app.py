@@ -1,4 +1,6 @@
-from flask import Flask, jsonify
+import os
+import uuid
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -7,6 +9,24 @@ CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 @app.route('/api/test', methods=['GET'])
 def test():
     return jsonify({"message": "Backend is running!"})
+
+@app.route('/api/diarize', methods=['POST'])
+def diarize_audio():
+    if 'audio' not in request.files:
+        return jsonify({"error": "No audio file provided"}), 400
+
+    audio_file = request.files['audio']
+    if audio_file.filename == '':
+        return jsonify({"error": "Empty filename"}), 400
+
+    # Generate a unique filename and save
+    filename = f"{uuid.uuid4().hex}.webm"
+    save_path = os.path.join("uploads", filename)
+    os.makedirs("uploads", exist_ok=True)
+    audio_file.save(save_path)
+
+    # Placeholder response
+    return jsonify({"message": "Audio received", "filename": filename}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
