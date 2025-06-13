@@ -1,5 +1,6 @@
 import os
 import uuid
+import subprocess
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
@@ -25,8 +26,23 @@ def diarize_audio():
     os.makedirs("uploads", exist_ok=True)
     audio_file.save(save_path)
 
-    # Placeholder response
-    return jsonify({"message": "Audio received", "filename": filename}), 200
+    try:
+        result = subprocess.run(
+            ['python3', 'diarize.py', '-a', os.path.join('uploads', filename)],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return jsonify({
+            "message": "Diarization completed",
+            "filename": filename,
+            "output": result.stdout
+        }), 200
+    except subprocess.CalledProcessError as e:
+        return jsonify({
+            "error": "Diarization failed",
+            "details": e.stderr
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
