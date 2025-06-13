@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "./button";
+import StatusBanner from "./StatusBanner";
 
 const MicRecorderComponent = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioURL, setAudioURL] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const canvasRef = useRef(null);
@@ -81,6 +84,9 @@ const MicRecorderComponent = () => {
       const url = URL.createObjectURL(audioBlob);
       setAudioURL(url);
 
+      setIsLoading(true);
+      setIsComplete(false);
+
       const formData = new FormData();
       formData.append('file', audioBlob, 'recording.webm');
 
@@ -91,9 +97,13 @@ const MicRecorderComponent = () => {
         .then(response => response.json())
         .then(data => {
           console.log("Diarization result:", data);
+          setIsLoading(false);
+          setIsComplete(true);
         })
         .catch(error => {
           console.error("Error sending audio to backend:", error);
+          setIsLoading(false);
+          setIsComplete(false);
         });
 
       cancelAnimationFrame(animationRef.current);
@@ -109,6 +119,8 @@ const MicRecorderComponent = () => {
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
+      setIsLoading(false);
+      setIsComplete(false);
       setIsRecording(false);
     }
   };
@@ -118,6 +130,9 @@ const MicRecorderComponent = () => {
     if (file) {
       const url = URL.createObjectURL(file);
       setAudioURL(url);
+
+      setIsLoading(true);
+      setIsComplete(false);
 
       const formData = new FormData();
       formData.append('file', file);
@@ -129,9 +144,13 @@ const MicRecorderComponent = () => {
         .then(response => response.json())
         .then(data => {
           console.log("Diarization result:", data);
+          setIsLoading(false);
+          setIsComplete(true);
         })
         .catch(error => {
           console.error("Error sending uploaded audio to backend:", error);
+          setIsLoading(false);
+          setIsComplete(false);
         });
     }
   };
@@ -146,6 +165,7 @@ const MicRecorderComponent = () => {
   return (
     <div className="flex flex-col items-center gap-4 p-6 bg-white shadow-md rounded-xl w-full max-w-md mx-auto">
       <h2 className="text-xl font-bold">Mic Recorder for Conversation Summarization</h2>
+      <StatusBanner isLoading={isLoading} isComplete={isComplete} />
       <canvas ref={canvasRef} width={400} height={100} className="rounded border" />
       <div className="flex gap-4">
         <Button
@@ -175,6 +195,9 @@ const MicRecorderComponent = () => {
           onClick={async () => {
             if (!audioURL) return alert("Please record or upload an audio file first.");
 
+            setIsLoading(true);
+            setIsComplete(false);
+
             try {
               const response = await fetch(audioURL);
               const blob = await response.blob();
@@ -188,9 +211,13 @@ const MicRecorderComponent = () => {
 
               const data = await res.json();
               console.log("Diarization result:", data);
+              setIsLoading(false);
+              setIsComplete(true);
               alert("Diarization complete. Check console for result.");
             } catch (err) {
               console.error("Error during diarization:", err);
+              setIsLoading(false);
+              setIsComplete(false);
               alert("Diarization failed. Check console for error.");
             }
           }}
