@@ -84,28 +84,6 @@ const MicRecorderComponent = () => {
       const url = URL.createObjectURL(audioBlob);
       setAudioURL(url);
 
-      /**setIsLoading(true);
-      setIsComplete(false);**/
-
-      const formData = new FormData();
-      formData.append('file', audioBlob, 'recording.webm');
-
-      fetch('http://127.0.0.1:5000/api/diarize', {
-        method: 'POST',
-        body: formData,
-      })
-        .then(response => response.json())
-        .then(data => {
-          console.log("Diarization result:", data);
-          /**setIsLoading(false);
-          setIsComplete(true);**/
-        })
-        .catch(error => {
-          console.error("Error sending audio to backend:", error);
-          /**setIsLoading(false);
-          setIsComplete(false);**/
-        });
-
       cancelAnimationFrame(animationRef.current);
       if (analyserRef.current) analyserRef.current.disconnect();
       if (sourceRef.current) sourceRef.current.disconnect();
@@ -130,28 +108,6 @@ const MicRecorderComponent = () => {
     if (file) {
       const url = URL.createObjectURL(file);
       setAudioURL(url);
-
-      setIsLoading(true);
-      setIsComplete(false);
-
-      const formData = new FormData();
-      formData.append('file', file);
-
-      fetch('http://127.0.0.1:5000/api/diarize', {
-        method: 'POST',
-        body: formData,
-      })
-        .then(response => response.json())
-        .then(data => {
-          console.log("Diarization result:", data);
-          setIsLoading(false);
-          setIsComplete(true);
-        })
-        .catch(error => {
-          console.error("Error sending uploaded audio to backend:", error);
-          setIsLoading(false);
-          setIsComplete(false);
-        });
     }
   };
 
@@ -211,9 +167,15 @@ const MicRecorderComponent = () => {
 
               const data = await res.json();
               console.log("Diarization result:", data);
+
+              if (data.filename) {
+                const transcriptRes = await fetch(`http://127.0.0.1:5000/api/transcript/${data.filename}`);
+                const transcriptText = await transcriptRes.text();
+                console.log("Transcript:", transcriptText);
+              }
+
               setIsLoading(false);
               setIsComplete(true);
-              alert("Diarization complete. Check console for result.");
             } catch (err) {
               console.error("Error during diarization:", err);
               setIsLoading(false);

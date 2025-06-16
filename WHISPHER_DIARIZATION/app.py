@@ -44,5 +44,18 @@ def diarize_audio():
             "details": e.stderr
         }), 500
 
+@app.route('/api/transcript/<filename>', methods=['GET'])
+def get_transcript(filename):
+    txt_filename = os.path.splitext(filename)[0] + ".txt"
+    txt_path = os.path.join("uploads", txt_filename)
+
+    if not os.path.exists(txt_path):
+        return jsonify({"error": "Transcript not found"}), 404
+
+    with open(txt_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    return jsonify({"transcript": content}), 200
+
 if __name__ == '__main__':
     app.run(debug=True)
