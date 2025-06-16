@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "./button";
 import StatusBanner from "./StatusBanner";
+import { Textarea } from "./textarea";
 
 const MicRecorderComponent = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -8,6 +9,7 @@ const MicRecorderComponent = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [transcript, setTranscript] = useState("");
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const canvasRef = useRef(null);
@@ -172,6 +174,7 @@ const MicRecorderComponent = () => {
                 const transcriptRes = await fetch(`http://127.0.0.1:5000/api/transcript/${data.filename}`);
                 const transcriptText = await transcriptRes.text();
                 console.log("Transcript:", transcriptText);
+                setTranscript(transcriptText);
               }
 
               setIsLoading(false);
@@ -188,6 +191,12 @@ const MicRecorderComponent = () => {
           Diarize
         </Button>
       </div>
+      <Textarea
+          className="mt-4 w-full max-w-full resize-none border rounded-md p-2"
+          placeholder="Diarized transcript will appear here..."
+          readOnly
+          value={transcript}
+        />
       {audioURL && (
         <audio
           controls
