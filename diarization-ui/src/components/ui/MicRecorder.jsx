@@ -84,8 +84,8 @@ const MicRecorderComponent = () => {
       const url = URL.createObjectURL(audioBlob);
       setAudioURL(url);
 
-      setIsLoading(true);
-      setIsComplete(false);
+      /**setIsLoading(true);
+      setIsComplete(false);**/
 
       const formData = new FormData();
       formData.append('file', audioBlob, 'recording.webm');
@@ -97,13 +97,13 @@ const MicRecorderComponent = () => {
         .then(response => response.json())
         .then(data => {
           console.log("Diarization result:", data);
-          setIsLoading(false);
-          setIsComplete(true);
+          /**setIsLoading(false);
+          setIsComplete(true);**/
         })
         .catch(error => {
           console.error("Error sending audio to backend:", error);
-          setIsLoading(false);
-          setIsComplete(false);
+          /**setIsLoading(false);
+          setIsComplete(false);**/
         });
 
       cancelAnimationFrame(animationRef.current);
