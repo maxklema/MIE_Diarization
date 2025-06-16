@@ -163,7 +163,7 @@ const MicRecorderComponent = () => {
   }, []);
 
   return (
-    <div className="flex flex-col items-center gap-4 p-6 bg-white shadow-md rounded-xl w-full max-w-md mx-auto">
+    <div className="flex flex-col items-center gap-3 p-6 bg-white shadow-md rounded-xl w-full max-w-md mx-auto">
       <h2 className="text-xl font-bold">Mic Recorder for Conversation Summarization</h2>
       <StatusBanner isLoading={isLoading} isComplete={isComplete} />
       <canvas ref={canvasRef} width={400} height={100} className="rounded border" />
@@ -190,7 +190,7 @@ const MicRecorderComponent = () => {
           <input id="file-upload" type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
         </label>
       </div>
-      <div className="mt-4">
+      <div>
         <Button
           onClick={async () => {
             if (!audioURL) return alert("Please record or upload an audio file first.");
@@ -221,7 +221,7 @@ const MicRecorderComponent = () => {
               alert("Diarization failed. Check console for error.");
             }
           }}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
+          className="bg-blue-500 text-white px-4 py-2 rounded mt-0"
         >
           Diarize
         </Button>
@@ -230,7 +230,7 @@ const MicRecorderComponent = () => {
         <audio
           controls
           src={audioURL}
-          className="mt-4 w-full rounded-md"
+          className="mt-2 w-full rounded-md"
           ref={audioElementRef}
           onPlay={() => {
             if (audioElementRef.current && !isPlaying) {
