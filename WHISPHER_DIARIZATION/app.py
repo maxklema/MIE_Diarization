@@ -54,7 +54,6 @@ def get_transcript(filename):
 
     with open(txt_path, "r", encoding="utf-8") as f:
         content = f.read().lstrip('\ufeff')
-
     return jsonify({"transcript": content}), 200
 
 if __name__ == '__main__':

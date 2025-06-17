@@ -195,7 +195,14 @@ const MicRecorderComponent = () => {
           className="mt-4 w-full max-w-full resize-none border rounded-md p-2"
           placeholder="Diarized transcript will appear here..."
           readOnly
-          value={transcript}
+          value={(() => {
+            try {
+              const parsed = JSON.parse(transcript);
+              return parsed.transcript || transcript;
+            } catch {
+              return transcript;
+            }
+          })()}
         />
       {audioURL && (
         <audio
