@@ -81,5 +81,37 @@ def test_ozwell():
         print("Error:", str(e))
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/ozwell_chat', methods=['POST'])
+def ozwell_chat():
+    try:
+        user_input = request.json.get("message")
+        if not user_input:
+            return jsonify({"error": "No message provided"}), 400
+
+        headers = {
+            "Authorization": f"Bearer {OZWELL_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "prompt": user_input,
+            "systemMessage": "You are a helpful assistant."
+        }
+
+        response = requests.post(
+            "https://ai.bluehive.com/api/v1/completion",
+            headers=headers,
+            json=payload
+        )
+
+        print("Ozwell Chat Status Code:", response.status_code)
+        print("Ozwell Chat Raw Response:", response.text)
+
+        return jsonify(response.json()), response.status_code
+
+    except Exception as e:
+        print("Error:", str(e))
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)
