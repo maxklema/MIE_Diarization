@@ -1,9 +1,12 @@
 import os
 import uuid
 import subprocess
+import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-
+from dotenv import load_dotenv
+load_dotenv()
+OZWELL_API_KEY = os.getenv("OZWELL_API_KEY")
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
@@ -55,6 +58,28 @@ def get_transcript(filename):
     with open(txt_path, "r", encoding="utf-8") as f:
         content = f.read().lstrip('\ufeff')
     return jsonify({"transcript": content}), 200
+
+
+@app.route('/api/test_ozwell', methods=['GET'])
+def test_ozwell():
+    try:
+        headers = {
+            "Authorization": f"Bearer {OZWELL_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        # This URL is for testing credentials only
+        response = requests.post(
+            "https://ai.bluehive.com/api/v1/test-credentials",
+            headers=headers
+        )
+
+        print("Ozwell Response:", response.text)
+        return jsonify({"ozwell_reply": response.json()}), response.status_code
+
+    except Exception as e:
+        print("Error:", str(e))
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
