@@ -53,7 +53,7 @@ def get_transcript(filename):
         return jsonify({"error": "Transcript not found"}), 404
 
     with open(txt_path, "r", encoding="utf-8") as f:
-        content = f.read()
+        content = f.read().lstrip('\ufeff')
 
     return jsonify({"transcript": content}), 200
 
