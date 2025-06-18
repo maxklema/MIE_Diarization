@@ -10,6 +10,7 @@ const MicRecorderComponent = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [summary, setSummary] = useState("");
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const canvasRef = useRef(null);
@@ -175,6 +176,9 @@ const MicRecorderComponent = () => {
               if (data.transcript) {
                 setTranscript(data.transcript);
               }
+              if (data.summary) {
+                setSummary(data.summary);
+              }
 
               setIsLoading(false);
               setIsComplete(true);
@@ -190,6 +194,7 @@ const MicRecorderComponent = () => {
           Diarize
         </Button>
       </div>
+      <h3 className="text-lg font-semibold mt-4">Diarized Audio</h3>
       <Textarea
           className="mt-4 w-full max-w-full resize-none border rounded-md p-2"
           placeholder="Diarized transcript will appear here..."
@@ -203,6 +208,13 @@ const MicRecorderComponent = () => {
             }
           })()}
         />
+      <h3 className="text-lg font-semibold mt-4">Summarized Conversation</h3>
+      <Textarea
+        className="mt-4 w-full max-w-full resize-none border rounded-md p-2"
+        placeholder="Summary will appear here..."
+        readOnly
+        value={summary}
+      />
       {audioURL && (
         <audio
           controls
