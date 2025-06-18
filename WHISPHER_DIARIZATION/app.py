@@ -36,10 +36,36 @@ def diarize_audio():
             text=True,
             check=True
         )
+
+        # Path to transcript file
+        transcript_file = os.path.join("uploads", os.path.splitext(filename)[0] + ".txt")
+        with open(transcript_file, "r", encoding="utf-8") as f:
+            transcript_text = f.read().lstrip('\ufeff')
+
+        # Prepare Ozwell summarization request
+        ozwell_url = "https://ai.bluehive.com/api/v1/completion"
+        headers = {
+                    "Authorization": f"Bearer {OZWELL_API_KEY}",
+                    "Content-Type": "application/json"
+                    }
+        payload = {
+                    "prompt": f"Please summarize this conversation:\n\n{transcript_text}",
+                    "systemMessage": "You are a helpful assistant. Provide a short summary."
+            }
+
+        ozwell_response = requests.post(ozwell_url, headers=headers, json=payload)
+        ozwell_summary = "Could not get summary."
+        if ozwell_response.ok:
+            try:
+                ozwell_summary = ozwell_response.json()["choices"][0]["message"]["content"]
+            except Exception as e:
+                print("Error parsing Ozwell summary:", str(e))
+
         return jsonify({
-            "message": "Diarization completed",
+            "message": "Diarization and summarization done",
             "filename": filename,
-            "output": result.stdout
+            "transcript": transcript_text,
+            "summary": ozwell_summary
         }), 200
     except subprocess.CalledProcessError as e:
         return jsonify({

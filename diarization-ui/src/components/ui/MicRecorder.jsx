@@ -168,8 +168,10 @@ const MicRecorderComponent = () => {
               });
 
               const data = await res.json();
-              console.log("Diarization result:", data);
-
+              console.log("Diarization filename:", data.filename);
+              console.log("Transcript:", data.transcript);
+              console.log("Summary:", data.summary);
+              
               if (data.filename) {
                 const transcriptRes = await fetch(`http://127.0.0.1:5000/api/transcript/${data.filename}`);
                 const transcriptText = await transcriptRes.text();
