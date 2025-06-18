@@ -172,11 +172,8 @@ const MicRecorderComponent = () => {
               console.log("Transcript:", data.transcript);
               console.log("Summary:", data.summary);
               
-              if (data.filename) {
-                const transcriptRes = await fetch(`http://127.0.0.1:5000/api/transcript/${data.filename}`);
-                const transcriptText = await transcriptRes.text();
-                console.log("Transcript:", transcriptText);
-                setTranscript(transcriptText);
+              if (data.transcript) {
+                setTranscript(data.transcript);
               }
 
               setIsLoading(false);
