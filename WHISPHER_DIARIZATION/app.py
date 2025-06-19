@@ -58,8 +58,14 @@ def diarize_audio():
         if ozwell_response.ok:
             try:
                 ozwell_summary = ozwell_response.json()["choices"][0]["message"]["content"]
+                # Save the summary to a new file
+                summary_file = os.path.join("uploads", os.path.splitext(filename)[0] + "_summary.txt")
+                with open(summary_file, "w", encoding="utf-8") as f:
+                    f.write(ozwell_summary)
             except Exception as e:
                 print("Error parsing Ozwell summary:", str(e))
+        
+            
 
         return jsonify({
             "message": "Diarization and summarization done",
