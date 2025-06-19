@@ -196,21 +196,21 @@ const MicRecorderComponent = () => {
       </div>
       <h3 className="text-lg font-semibold mt-4">Diarized Audio</h3>
       <Textarea
-          className="mt-4 w-full max-w-full resize-none border rounded-md p-2"
-          placeholder="Diarized transcript will appear here..."
-          readOnly
-          value={(() => {
-            try {
-              const parsed = JSON.parse(transcript);
-              return parsed.transcript || transcript;
-            } catch {
-              return transcript;
-            }
-          })()}
-        />
+        className="mt-4 w-full max-w-full max-h-60 overflow-y-auto resize-none border rounded-md p-2"
+        placeholder="Diarized transcript will appear here..."
+        readOnly
+        value={(() => {
+          try {
+            const parsed = JSON.parse(transcript);
+            return parsed.transcript || transcript;
+          } catch {
+            return transcript;
+          }
+        })()}
+      />
       <h3 className="text-lg font-semibold mt-4">Summarized Conversation</h3>
       <Textarea
-        className="mt-4 w-full max-w-full resize-none border rounded-md p-2"
+        className="mt-4 w-full max-w-full max-h-60 overflow-y-auto resize-none border rounded-md p-2"
         placeholder="Summary will appear here..."
         readOnly
         value={summary}
