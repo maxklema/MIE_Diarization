@@ -2,6 +2,14 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "./button";
 import StatusBanner from "./StatusBanner";
 import { Textarea } from "./textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./dropdown-menu";
 
 const MicRecorderComponent = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -11,6 +19,7 @@ const MicRecorderComponent = () => {
   const [isComplete, setIsComplete] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [summary, setSummary] = useState("");
+  const [selectedOption, setSelectedOption] = useState("Summary");
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const canvasRef = useRef(null);
@@ -194,26 +203,35 @@ const MicRecorderComponent = () => {
           Diarize
         </Button>
       </div>
-      <h3 className="text-lg font-semibold mt-4">Diarized Audio</h3>
+      <div className="w-full mt-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="bg-gray-200 text-gray-800 px-2 py-0.5 rounded mt-2 w-full">
+              {selectedOption}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-full">
+              <DropdownMenuLabel>Select View</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setSelectedOption("Summary")}>Summary</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSelectedOption("Diarization")}>Diarization</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       <Textarea
         className="mt-4 w-full max-w-full max-h-60 overflow-y-auto resize-none border rounded-md p-2"
-        placeholder="Diarized transcript will appear here..."
+        placeholder={`${selectedOption} will appear here...`}
         readOnly
-        value={(() => {
-          try {
-            const parsed = JSON.parse(transcript);
-            return parsed.transcript || transcript;
-          } catch {
-            return transcript;
-          }
-        })()}
-      />
-      <h3 className="text-lg font-semibold mt-4">Summarized Conversation</h3>
-      <Textarea
-        className="mt-4 w-full max-w-full max-h-60 overflow-y-auto resize-none border rounded-md p-2"
-        placeholder="Summary will appear here..."
-        readOnly
-        value={summary}
+        value={
+          selectedOption === "Summary"
+            ? summary
+            : (() => {
+                try {
+                  const parsed = JSON.parse(transcript);
+                  return parsed.transcript || transcript;
+                } catch {
+                  return transcript;
+                }
+              })()
+        }
       />
       {audioURL && (
         <audio
