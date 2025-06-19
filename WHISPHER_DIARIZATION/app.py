@@ -49,9 +49,31 @@ def diarize_audio():
                     "Content-Type": "application/json"
                     }
         payload = {
-                    "prompt": f"Please summarize this conversation:\n\n{transcript_text}",
-                    "systemMessage": "You are a helpful assistant. Provide a short summary."
-            }
+            "prompt": f"Please summarize this conversation:\n\n{transcript_text}",
+            "systemMessage": """You are a helpful medical assistant. Given a doctor-patient conversation transcript, generate a clear, concise summary understandable to both doctor and patient.
+
+Your summary must include as many of the following as possible, based only on what is actually mentioned in the conversation:
+- Patient's main complaint or condition.
+- Any relevant history or self-treatment the patient attempted.
+- Possible causes or contributing factors discussed.
+- Diagnostic steps or assessments performed by the doctor.
+- The doctor’s explanation of the condition (if any).
+- Clearly state the treatment plan or advice.
+- Any follow-up instructions or prognosis.
+- Any advice or lifestyle recommendations.
+- Be easy for patient and doctor to understand.
+- Be complete but not unnecessarily verbose.
+
+Do not guess or hallucinate missing information. Use simple language. Organize as short paragraphs or bullet points. Be complete but not verbose.
+
+Start with: **Patient Summary:**
+
+If any item is not covered, skip it politely.
+
+""",
+            "temperature": 0.0,
+            "maxTokens": 500
+        }
 
         ozwell_response = requests.post(ozwell_url, headers=headers, json=payload)
         ozwell_summary = "Could not get summary."
