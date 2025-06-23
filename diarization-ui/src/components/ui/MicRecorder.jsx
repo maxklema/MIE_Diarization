@@ -20,6 +20,7 @@ const MicRecorderComponent = () => {
   const [transcript, setTranscript] = useState("");
   const [summary, setSummary] = useState("");
   const [selectedOption, setSelectedOption] = useState("Summary");
+  const [interactionType, setInteractionType] = useState("Doctor-Patient");
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const canvasRef = useRef(null);
@@ -158,6 +159,22 @@ const MicRecorderComponent = () => {
           <input id="file-upload" type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
         </label>
       </div>
+      <div className="w-full mt-2">
+        <h3 className="text-sm font-semibold mb-1">Select Interaction Type</h3>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="bg-gray-200 text-gray-800 px-2 py-0.5 rounded w-full">
+            {interactionType}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-full">
+            <DropdownMenuItem onClick={() => setInteractionType("Doctor-Patient")}>
+              Doctor-Patient Interaction
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setInteractionType("General")}>
+              General Interaction
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <div>
         <Button
           onClick={async () => {
@@ -171,6 +188,7 @@ const MicRecorderComponent = () => {
               const blob = await response.blob();
               const formData = new FormData();
               formData.append("audio", blob, "recording.webm");
+              formData.append("interaction_type", interactionType);
 
               const res = await fetch("http://127.0.0.1:5000/api/diarize", {
                 method: "POST",
@@ -200,7 +218,7 @@ const MicRecorderComponent = () => {
           }}
           className="bg-blue-500 text-white px-4 py-2 rounded mt-0"
         >
-          Diarize
+          Summarize
         </Button>
       </div>
       <div className="w-full mt-2">
