@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./dropdown-menu";
+import { ChevronDown } from "lucide-react";
 
 const MicRecorderComponent = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -159,17 +160,29 @@ const MicRecorderComponent = () => {
           <input id="file-upload" type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
         </label>
       </div>
-      <div className="w-full mt-2">
-        <h3 className="text-sm font-semibold mb-1">Select Interaction Type</h3>
+      <div className="w-full mt-2 mb-2">
+        <h3 className="text-sm font-medium mb-1 text-gray-700 text-center">Select Interaction Type</h3>
         <DropdownMenu>
-          <DropdownMenuTrigger className="bg-gray-200 text-gray-800 px-2 py-0.5 rounded w-full">
-            {interactionType}
+          <DropdownMenuTrigger className="flex justify-center items-center bg-gray-200 text-gray-800 px-2 py-0.5 rounded w-full text-center">
+            {interactionType} <ChevronDown className="w-4 h-4 ml-1" />
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-full">
-            <DropdownMenuItem onClick={() => setInteractionType("Doctor-Patient")}>
+            <DropdownMenuItem
+              onClick={() => {
+                console.log("Selected: Doctor-Patient");
+                setInteractionType("Doctor-Patient");
+              }}
+              className="hover:bg-gray-100"
+            >
               Doctor-Patient Interaction
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setInteractionType("General")}>
+            <DropdownMenuItem
+              onClick={() => {
+                console.log("Selected: General");
+                setInteractionType("General");
+              }}
+              className="hover:bg-gray-100"
+            >
               General Interaction
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -188,6 +201,7 @@ const MicRecorderComponent = () => {
               const blob = await response.blob();
               const formData = new FormData();
               formData.append("audio", blob, "recording.webm");
+              console.log("Interaction type being sent:", interactionType);
               formData.append("interaction_type", interactionType);
 
               const res = await fetch("http://127.0.0.1:5000/api/diarize", {
@@ -221,16 +235,17 @@ const MicRecorderComponent = () => {
           Summarize
         </Button>
       </div>
-      <div className="w-full mt-2">
+      <div className="w-full mt-2 mb-2">
+          <h3 className="text-sm font-medium mb-1 text-gray-700 text-center">Select View</h3>
           <DropdownMenu>
-            <DropdownMenuTrigger className="bg-gray-200 text-gray-800 px-2 py-0.5 rounded mt-2 w-full">
+            <DropdownMenuTrigger className="flex justify-center items-center bg-gray-200 text-gray-800 px-2 py-0.5 rounded w-full text-center">
               {selectedOption}
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-full">
               <DropdownMenuLabel>Select View</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setSelectedOption("Summary")}>Summary</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSelectedOption("Diarization")}>Diarization</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSelectedOption("Summary")} className="hover:bg-gray-100">Summary</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSelectedOption("Diarization")} className="hover:bg-gray-100">Diarization</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

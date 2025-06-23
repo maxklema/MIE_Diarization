@@ -29,6 +29,9 @@ def diarize_audio():
     os.makedirs("uploads", exist_ok=True)
     audio_file.save(save_path)
 
+    interaction_type = request.form.get("interaction_type", "medical")
+    print("Received interactionType:", interaction_type)
+
     try:
         result = subprocess.run(
             ['python3', 'diarize.py', '-a', os.path.join('uploads', filename)],
@@ -48,9 +51,11 @@ def diarize_audio():
                     "Authorization": f"Bearer {OZWELL_API_KEY}",
                     "Content-Type": "application/json"
                     }
-        payload = {
-            "prompt": f"Please summarize this conversation:\n\n{transcript_text}",
-            "systemMessage": """You are a helpful medical assistant. Given a doctor-patient conversation transcript, generate a clear, concise summary understandable to both doctor and patient.
+
+        if interaction_type.lower() == "general":
+            system_message = "You are a helpful, general-purpose assistant. Summarize this conversation clearly and concisely for any reader. Do not assume any medical context. Avoid disclaimers."
+        else:
+            system_message = """You are a helpful medical assistant. Given a doctor-patient conversation transcript, generate a clear, concise summary understandable to both doctor and patient.
 
 Your summary must include as many of the following as possible, based only on what is actually mentioned in the conversation:
 - Patient's main complaint or condition.
@@ -69,8 +74,11 @@ Do not guess or hallucinate missing information. Use simple language. Organize a
 Start with: **Patient Summary:**
 
 If any item is not covered, skip it politely.
+"""
 
-""",
+        payload = {
+            "prompt": f"Provide a clear, concise summary of the following conversation:\n\n{transcript_text}",
+            "systemMessage": system_message,
             "temperature": 0.0,
             "maxTokens": 500
         }
