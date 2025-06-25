@@ -123,3 +123,13 @@ If you're still getting the error of the ctc-forced-aligner. Try installing ctc 
 pip install -c constraints.txt -r requirements.txt
 ```
 and then run the file as stated above
+
+```mermaid
+flowchart TD
+    A[Audio Input] --> B[Preprocessing]
+    B --> C[Feature Extraction]
+    C --> D[Neural Network Model]
+    D --> E[Transcription Output]
+    E --> F[Postprocessing]
+    F --> G[Final Text Output]
+```
