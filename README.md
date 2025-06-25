@@ -124,12 +124,66 @@ pip install -c constraints.txt -r requirements.txt
 ```
 and then run the file as stated above
 
+This is how the flow is:
+## 🔄 Diarization + Transcription Pipeline (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Demucs
+    participant Whisper
+    participant CTCAligner
+    participant NeMo
+    participant Punctuation
+    participant Output
+
+    User->>Demucs: Provide audio input
+    alt Source separation enabled
+        Demucs->>User: Return vocals.wav
+    else Skipped
+        User->>Whisper: Use original audio
+    end
+
+    User->>Whisper: Transcribe audio (Faster-Whisper)
+    Whisper->>CTCAligner: Generate emissions & align words
+    CTCAligner->>User: Word-level timestamps
+
+    User->>NeMo: Run diarization (VAD, ECAPA-TDNN, MSDD)
+    NeMo->>User: Speaker segment timestamps
+
+    User->>NeMo: Map words to speakers
+    alt Punctuation supported
+        User->>Punctuation: Add punctuation
+        Punctuation->>User: Return punctuated transcript
+    else Not supported
+        User->>User: Skip punctuation
+    end
+
+    User->>Output: Save outputs (.txt, .srt)
+    Output-->>User: Diarized and transcribed results
+```
+
+---
+
 ```mermaid
 flowchart TD
-    A[Audio Input] --> B[Preprocessing]
-    B --> C[Feature Extraction]
-    C --> D[Neural Network Model]
-    D --> E[Transcription Output]
-    E --> F[Postprocessing]
-    F --> G[Final Text Output]
+    A[Start: User provides audio file] --> B{Source Separation enabled?}
+    B -- Yes --> C[Demucs separates vocals]
+    B -- No --> D[Use original audio]
+
+    C --> E[Whisper Transcribes Audio]
+    D --> E
+
+    E --> F[CTC Forced Aligner generates word-level timestamps]
+    F --> G[NeMo Diarization runs VAD, ECAPA-TDNN, MSDD]
+    G --> H[Map words to speakers]
+
+    H --> I{Punctuation Supported?}
+    I -- Yes --> J[Apply Punctuation]
+    I -- No --> K[Skip punctuation]
+
+    J --> L[Write .txt and .srt]
+    K --> L
+
+    L --> M[Return final transcript & diarized output]
 ```
