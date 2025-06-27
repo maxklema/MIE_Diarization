@@ -259,3 +259,27 @@ with open(f"{os.path.splitext(args.audio)[0]}.srt", "w", encoding="utf-8-sig") a
     write_srt(ssm, srt)
 
 cleanup(temp_path)
+
+# Visual debug: Plot word alignment timings
+print(f"[DEBUG] Number of words in word_timestamps: {len(word_timestamps)}")
+print(f"[DEBUG] Sample entry: {word_timestamps[0] if word_timestamps else 'None'}")
+print("[DEBUG] Plotting word alignments...")
+for word in word_timestamps:
+    print(word)
+import matplotlib.pyplot as plt
+try:
+    plt.figure(figsize=(12, 6))
+    for i, word_data in enumerate(word_timestamps):
+        if all(key in word_data for key in ['start', 'end', 'text']):
+            start = word_data['start'] / 1000  # convert ms to seconds
+            end = word_data['end'] / 1000
+            plt.hlines(y=1, xmin=start, xmax=end, color='blue', linewidth=6)
+            plt.text((start + end) / 2, 1.05, word_data['text'], rotation=45, ha='center', va='bottom', fontsize=8)
+    plt.ylim(0.95, 1.2)
+    plt.xlabel('Time (s)')
+    plt.title('Word Alignment Timeline')
+    plt.tight_layout()
+    plt.savefig(f"{os.path.splitext(args.audio)[0]}_alignment_debug.png")
+    plt.close()
+except Exception as e:
+    logging.warning(f"Failed to generate alignment debug plot: {e}")
