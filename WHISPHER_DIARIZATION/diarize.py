@@ -144,7 +144,29 @@ else:
         vad_filter=True,
     )
 
+transcript_segments = list(transcript_segments)
+print(f"[DEBUG] Number of segments: {len(transcript_segments)}")
+
 full_transcript = "".join(segment.text for segment in transcript_segments)
+
+# Print and save the Whisper segments for debugging
+print("[DEBUG] Whisper segments:")
+print(f"[DEBUG] Number of segments: {len(transcript_segments)}")
+if not transcript_segments:
+    print("[DEBUG] transcript_segments is empty.")
+for segment in transcript_segments:
+    print(segment)
+
+# Save Whisper segments to file
+if args.audio and transcript_segments:
+    seg_file = f"{os.path.splitext(args.audio)[0]}_whisper_segments.txt"
+    try:
+        with open(seg_file, 'w', encoding='utf-8') as f:
+            for segment in transcript_segments:
+                f.write(f"{segment.start:.2f} --> {segment.end:.2f}: {segment.text.strip()}\n")
+        print(f"[INFO] Whisper segments saved to {seg_file}")
+    except Exception as e:
+        logging.warning(f"Failed to save Whisper segments: {e}")
 
 # clear gpu vram
 del whisper_model, whisper_pipeline
@@ -261,25 +283,49 @@ with open(f"{os.path.splitext(args.audio)[0]}.srt", "w", encoding="utf-8-sig") a
 cleanup(temp_path)
 
 # Visual debug: Plot word alignment timings
-print(f"[DEBUG] Number of words in word_timestamps: {len(word_timestamps)}")
+'''print(f"[DEBUG] Number of words in word_timestamps: {len(word_timestamps)}")
 print(f"[DEBUG] Sample entry: {word_timestamps[0] if word_timestamps else 'None'}")
 print("[DEBUG] Plotting word alignments...")
 for word in word_timestamps:
     print(word)
 import matplotlib.pyplot as plt
+
 try:
-    plt.figure(figsize=(12, 6))
-    for i, word_data in enumerate(word_timestamps):
-        if all(key in word_data for key in ['start', 'end', 'text']):
-            start = word_data['start'] / 1000  # convert ms to seconds
+    chunk_duration = 60  # seconds
+    start_time = 0
+    end_time = int(word_timestamps[-1]["end"] / 1000) + 1
+
+    for chunk_start in range(start_time, end_time, chunk_duration):
+        chunk_end = chunk_start + chunk_duration
+        chunk_words = [
+            w for w in word_timestamps 
+            if chunk_start * 1000 <= w['start'] < chunk_end * 1000
+        ]
+
+        if not chunk_words:
+            continue
+
+        plt.figure(figsize=(18, 4))
+        y_base = 1.0
+        y_range = 0.15  # Space between horizontal levels
+
+        for i, word_data in enumerate(chunk_words):
+            start = word_data['start'] / 1000
             end = word_data['end'] / 1000
-            plt.hlines(y=1, xmin=start, xmax=end, color='blue', linewidth=6)
-            plt.text((start + end) / 2, 1.05, word_data['text'], rotation=45, ha='center', va='bottom', fontsize=8)
-    plt.ylim(0.95, 1.2)
-    plt.xlabel('Time (s)')
-    plt.title('Word Alignment Timeline')
-    plt.tight_layout()
-    plt.savefig(f"{os.path.splitext(args.audio)[0]}_alignment_debug.png")
-    plt.close()
+            word = word_data.get('text', word_data.get('word', ''))
+            y_offset = (i % 5) * y_range
+            plt.hlines(y=y_base + y_offset, xmin=start, xmax=end, color='blue', linewidth=6)
+            plt.text((start + end) / 2, y_base + y_offset + 0.02, word,
+                     rotation=45, ha='center', va='bottom', fontsize=7)
+
+        plt.ylim(y_base - 0.1, y_base + y_range * 5)
+        plt.xlabel('Time (s)')
+        plt.title(f'Word Alignment Timeline: {chunk_start}s to {chunk_end}s')
+        plt.tight_layout()
+        filename = f"{os.path.splitext(args.audio)[0]}_alignment_debug_{chunk_start}_{chunk_end}.png"
+        plt.savefig(filename)
+        plt.close()
+
 except Exception as e:
-    logging.warning(f"Failed to generate alignment debug plot: {e}")
+    logging.warning(f"Failed to generate alignment debug plots: {e}")
+'''
