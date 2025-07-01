@@ -1,6 +1,20 @@
 # MIE_Diarization
-This is a Diarization which is built up on the work of https://github.com/MahmoudAshraf97/whisper-diarization . The project will help with diarization of the audio along with the timestamp. Itis working on faster-whispher
-The below description is copy pasted from the https://github.com/MahmoudAshraf97/whisper-diarization
+This is a Diarization and summarization project, which is using the NEMO Diarization pipeline, along with faster whispher. For summarization I've used Ozwell Ai which is an AI agent for the MIE.
+
+This project is my summer internship work, which I've worked on alone.
+
+Below are some shorts/vedios about the project and my research:
+## 🎬 Project Shorts
+
+| 🎥 Topic                                                  | 🔗 Watch                                                                 |
+|-----------------------------------------------------------|--------------------------------------------------------------------------|
+| 📊 **Full Project Overview**                              | [Watch on YouTube](https://youtube.com/shorts/aS2HU26QRXU?si=piUQbxEMDIeN3q_) |
+| 📈 **Pipeline Sequence Diagram Explained**                | [Watch on YouTube](https://www.youtube.com/shorts/YQj7j3qZjcw)           |
+| ⚙️ **Hyperparameters Walkthrough**                        | [Watch on YouTube](https://youtube.com/shorts/heUgx4hOj-k?si=TEbm6r_HaTvYDcDn) |
+| 🤖 **Whisper Model Comparison & Faster-Whisper Insights** | [Watch on YouTube](https://youtube.com/shorts/H21NiwoXnQg?si=Sqt_Jc2ZTt-Qgu5x) |
+
+
+Below is the description for running the diarization pipeline. This work couldn't have been possible without the project of diarization from https://github.com/MahmoudAshraf97/whisper-diarization
 
 <h1 align="center">Speaker Diarization Using OpenAI Whisper</h1>
 
