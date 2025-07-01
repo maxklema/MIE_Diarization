@@ -132,7 +132,7 @@ If you use this in your research, please cite the project:
 If the following things don't work do the following:
 1. Upgrade you python to 3.10+ version.
 
-If you're still getting the error of the ctc-forced-aligner. Try installing ctc forced aligner from the https://github.com/ayushdh96/MIE_Diarization/tree/main/ctc-forced-aligner into a venv or your machine aif you've the rrot access and are not managing different envs. The try running the command
+If you're still getting the error of the ctc-forced-aligner. Try installing ctc forced aligner from the https://github.com/ayushdh96/MIE_Diarization/tree/main/ctc-forced-aligner into a venv or your machine if you've the root access and are not managing different envs. The try running the command
 ```
 pip install -c constraints.txt -r requirements.txt
 ```
