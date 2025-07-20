@@ -6,6 +6,13 @@ import re
 import faster_whisper
 import torch
 import torchaudio
+from pyannote.audio import Model as PyannoteModel
+from pyannote.audio.pipelines import SpeakerDiarization as PyannoteDiarization
+from pyannote.audio.pipelines import VoiceActivityDetection
+import json
+from dotenv import load_dotenv
+load_dotenv()
+hf_token = os.getenv("HF_TOKEN")
 
 from ctc_forced_aligner import (
     generate_emissions,
@@ -217,9 +224,34 @@ torchaudio.save(
     channels_first=True,
 )
 
+# Pyannote segmentation
+pyannote_model = PyannoteModel.from_pretrained("pyannote/segmentation-3.0", 
+  use_auth_token=hf_token)
+vad_pipeline = VoiceActivityDetection(segmentation=pyannote_model)
+HYPER_PARAMETERS = {
+  # remove speech regions shorter than that many seconds.
+  "min_duration_on": 0.0,
+  # fill non-speech regions shorter than that many seconds.
+  "min_duration_off": 0.0
+}
+vad_pipeline.instantiate(HYPER_PARAMETERS)  
+payannote_vad = vad_pipeline(vocal_target)
 
+mono_file_path = os.path.join(temp_path, "mono_file.wav")
+pyannote_manifest = os.path.join(temp_path, "pyannote_manifest.json")
+with open(pyannote_manifest, "w") as f:
+    for speech in payannote_vad.get_timeline().support():
+        segment = {
+            "audio_filepath": mono_file_path,
+            "offset": speech.start,
+            "duration": speech.duration,
+            "label": "speech",
+            "uniq_id": "mono_file"
+        }
+        f.write(f"{json.dumps(segment)}\n")      
 # Initialize NeMo MSDD diarization model
 msdd_model = NeuralDiarizer(cfg=create_config(temp_path)).to(args.device)
+msdd_model._cfg.diarizer.manifest_filepath = pyannote_manifest
 msdd_model.diarize()
 
 del msdd_model
@@ -281,51 +313,3 @@ with open(f"{os.path.splitext(args.audio)[0]}.srt", "w", encoding="utf-8-sig") a
     write_srt(ssm, srt)
 
 cleanup(temp_path)
-
-# Visual debug: Plot word alignment timings
-'''print(f"[DEBUG] Number of words in word_timestamps: {len(word_timestamps)}")
-print(f"[DEBUG] Sample entry: {word_timestamps[0] if word_timestamps else 'None'}")
-print("[DEBUG] Plotting word alignments...")
-for word in word_timestamps:
-    print(word)
-import matplotlib.pyplot as plt
-
-try:
-    chunk_duration = 60  # seconds
-    start_time = 0
-    end_time = int(word_timestamps[-1]["end"] / 1000) + 1
-
-    for chunk_start in range(start_time, end_time, chunk_duration):
-        chunk_end = chunk_start + chunk_duration
-        chunk_words = [
-            w for w in word_timestamps 
-            if chunk_start * 1000 <= w['start'] < chunk_end * 1000
-        ]
-
-        if not chunk_words:
-            continue
-
-        plt.figure(figsize=(18, 4))
-        y_base = 1.0
-        y_range = 0.15  # Space between horizontal levels
-
-        for i, word_data in enumerate(chunk_words):
-            start = word_data['start'] / 1000
-            end = word_data['end'] / 1000
-            word = word_data.get('text', word_data.get('word', ''))
-            y_offset = (i % 5) * y_range
-            plt.hlines(y=y_base + y_offset, xmin=start, xmax=end, color='blue', linewidth=6)
-            plt.text((start + end) / 2, y_base + y_offset + 0.02, word,
-                     rotation=45, ha='center', va='bottom', fontsize=7)
-
-        plt.ylim(y_base - 0.1, y_base + y_range * 5)
-        plt.xlabel('Time (s)')
-        plt.title(f'Word Alignment Timeline: {chunk_start}s to {chunk_end}s')
-        plt.tight_layout()
-        filename = f"{os.path.splitext(args.audio)[0]}_alignment_debug_{chunk_start}_{chunk_end}.png"
-        plt.savefig(filename)
-        plt.close()
-
-except Exception as e:
-    logging.warning(f"Failed to generate alignment debug plots: {e}")
-'''
