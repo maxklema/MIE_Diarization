@@ -229,10 +229,8 @@ pyannote_model = PyannoteModel.from_pretrained("pyannote/segmentation-3.0",
   use_auth_token=hf_token)
 vad_pipeline = VoiceActivityDetection(segmentation=pyannote_model)
 HYPER_PARAMETERS = {
-  # remove speech regions shorter than that many seconds.
-  "min_duration_on": 0.0,
-  # fill non-speech regions shorter than that many seconds.
-  "min_duration_off": 0.0
+    "min_duration_on": 0, # Threshold for small non_speech deletion
+    "min_duration_off": 0.2, # Threshold for short speech segment deletion
 }
 vad_pipeline.instantiate(HYPER_PARAMETERS)  
 payannote_vad = vad_pipeline(vocal_target)
