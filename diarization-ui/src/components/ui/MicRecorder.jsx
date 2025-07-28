@@ -1,3 +1,4 @@
+import Waveform from "./Waveform";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "./button";
 import StatusBanner from "./StatusBanner";
@@ -22,6 +23,7 @@ const MicRecorderComponent = () => {
   const [summary, setSummary] = useState("");
   const [selectedOption, setSelectedOption] = useState("Summary");
   const [interactionType, setInteractionType] = useState("Doctor-Patient");
+  const [showWaveformPlayer, setShowWaveformPlayer] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const canvasRef = useRef(null);
@@ -32,6 +34,12 @@ const MicRecorderComponent = () => {
   const sourceRef = useRef(null);
   const audioElementRef = useRef(null);
 
+  const waveformRef = useRef(null);
+  const togglePlay = () => {
+    if (!waveformRef.current) return;
+    waveformRef.current.playPause();
+    setIsPlaying(waveformRef.current.isPlaying());
+  };
   const drawWave = () => {
     if (!canvasRef.current || !analyserRef.current) return;
     const canvas = canvasRef.current;
@@ -71,6 +79,8 @@ const MicRecorderComponent = () => {
 
   const startRecording = async () => {
     setAudioURL(null);
+    setShowWaveformPlayer(false);
+    setIsPlaying(false);
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
     audioCtxRef.current = new AudioContext();
@@ -98,6 +108,8 @@ const MicRecorderComponent = () => {
       const url = URL.createObjectURL(audioBlob);
       setAudioURL(url);
 
+      setShowWaveformPlayer(true);
+
       cancelAnimationFrame(animationRef.current);
       if (analyserRef.current) analyserRef.current.disconnect();
       if (sourceRef.current) sourceRef.current.disconnect();
@@ -122,6 +134,8 @@ const MicRecorderComponent = () => {
     if (file) {
       const url = URL.createObjectURL(file);
       setAudioURL(url);
+      setShowWaveformPlayer(true);
+      setIsPlaying(false);
     }
   };
 
@@ -136,7 +150,20 @@ const MicRecorderComponent = () => {
     <div className="flex flex-col items-center gap-3 p-6 bg-white shadow-md rounded-xl w-full max-w-md mx-auto">
       <h2 className="text-xl font-bold">Mic Recorder for Conversation Summarization</h2>
       <StatusBanner isLoading={isLoading} isComplete={isComplete} />
-      <canvas ref={canvasRef} width={400} height={100} className="rounded border" />
+      <div className="rounded border w-full max-w-full">
+        {!showWaveformPlayer ? (
+          <canvas ref={canvasRef} width={400} height={100} className="w-full h-24" />
+        ) : (
+          <Waveform ref={waveformRef} audioUrl={audioURL} />
+        )}
+      </div>
+      {showWaveformPlayer && !isRecording && (
+        <div className="flex justify-center mt-2">
+          <button onClick={togglePlay} className="bg-blue-500 text-white px-4 py-2 rounded">
+            {isPlaying ? "Pause" : "Play"}
+          </button>
+        </div>
+      )}
       <div className="flex gap-4">
         <Button
           onClick={startRecording}
@@ -213,7 +240,7 @@ const MicRecorderComponent = () => {
               console.log("Diarization filename:", data.filename);
               console.log("Transcript:", data.transcript);
               console.log("Summary:", data.summary);
-              
+
               if (data.transcript) {
                 setTranscript(data.transcript);
               }
@@ -236,19 +263,19 @@ const MicRecorderComponent = () => {
         </Button>
       </div>
       <div className="w-full mt-2 mb-2">
-          <h3 className="text-sm font-medium mb-1 text-gray-700 text-center">Select View</h3>
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex justify-center items-center bg-gray-200 text-gray-800 px-2 py-0.5 rounded w-full text-center">
-              {selectedOption}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-full">
-              <DropdownMenuLabel>Select View</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setSelectedOption("Summary")} className="hover:bg-gray-100">Summary</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSelectedOption("Diarization")} className="hover:bg-gray-100">Diarization</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <h3 className="text-sm font-medium mb-1 text-gray-700 text-center">Select View</h3>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex justify-center items-center bg-gray-200 text-gray-800 px-2 py-0.5 rounded w-full text-center">
+            {selectedOption}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-full">
+            <DropdownMenuLabel>Select View</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setSelectedOption("Summary")} className="hover:bg-gray-100">Summary</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSelectedOption("Diarization")} className="hover:bg-gray-100">Diarization</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <Textarea
         className="mt-4 w-full max-w-full max-h-60 overflow-y-auto resize-none border rounded-md p-2"
         placeholder={`${selectedOption} will appear here...`}
@@ -257,38 +284,15 @@ const MicRecorderComponent = () => {
           selectedOption === "Summary"
             ? summary
             : (() => {
-                try {
-                  const parsed = JSON.parse(transcript);
-                  return parsed.transcript || transcript;
-                } catch {
-                  return transcript;
-                }
-              })()
+              try {
+                const parsed = JSON.parse(transcript);
+                return parsed.transcript || transcript;
+              } catch {
+                return transcript;
+              }
+            })()
         }
       />
-      {audioURL && (
-        <audio
-          controls
-          src={audioURL}
-          className="mt-2 w-full rounded-md"
-          ref={audioElementRef}
-          onPlay={() => {
-            if (audioElementRef.current && !isPlaying) {
-              audioCtxRef.current = new AudioContext();
-              sourceRef.current = audioCtxRef.current.createMediaElementSource(audioElementRef.current);
-              analyserRef.current = audioCtxRef.current.createAnalyser();
-              analyserRef.current.fftSize = 2048;
-              const bufferLength = analyserRef.current.fftSize;
-              dataArrayRef.current = new Uint8Array(bufferLength);
-              sourceRef.current.connect(analyserRef.current);
-              analyserRef.current.connect(audioCtxRef.current.destination);
-              drawWave();
-              setIsPlaying(true);
-            }
-          }}
-          onPause={() => setIsPlaying(false)}
-        />
-      )}
     </div>
   );
 };
