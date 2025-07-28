@@ -40,6 +40,9 @@ const MicRecorderComponent = () => {
     waveformRef.current.playPause();
     setIsPlaying(waveformRef.current.isPlaying());
   };
+  const handleAudioFinish = () => {
+    setIsPlaying(false); // this resets the button to "Play"
+  };
   const drawWave = () => {
     if (!canvasRef.current || !analyserRef.current) return;
     const canvas = canvasRef.current;
@@ -154,7 +157,7 @@ const MicRecorderComponent = () => {
         {!showWaveformPlayer ? (
           <canvas ref={canvasRef} width={400} height={100} className="w-full h-24" />
         ) : (
-          <Waveform ref={waveformRef} audioUrl={audioURL} />
+          <Waveform ref={waveformRef} audioUrl={audioURL} onFinish={handleAudioFinish} />
         )}
       </div>
       {showWaveformPlayer && !isRecording && (

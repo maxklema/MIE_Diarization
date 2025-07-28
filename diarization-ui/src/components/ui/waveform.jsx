@@ -1,7 +1,7 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 
-const Waveform = forwardRef(({ audioUrl }, ref) => {
+const Waveform = forwardRef(({ audioUrl, onFinish }, ref) => {
   const containerRef = useRef(null);
   const waveSurferRef = useRef(null);
 
@@ -26,7 +26,9 @@ const Waveform = forwardRef(({ audioUrl }, ref) => {
     });
 
     waveSurferRef.current.load(audioUrl);
-
+    waveSurferRef.current.on('finish', () => {
+      onFinish?.(); // Call the parent's callback when audio finishes
+    });
     return () => {
       waveSurferRef.current?.destroy();
     };
