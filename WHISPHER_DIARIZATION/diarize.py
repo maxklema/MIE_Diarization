@@ -1,247 +1,373 @@
+import argparse
+import logging
 import os
-from typing import Callable, Text, Union
-from typing import Optional
+import re
 
-import numpy as np
+import faster_whisper
 import torch
-from pyannote.audio import Model
-from pyannote.audio.core.io import AudioFile
-from pyannote.audio.pipelines import VoiceActivityDetection
-from pyannote.audio.pipelines.utils import PipelineModel
-from pyannote.core import Annotation, SlidingWindowFeature
-from pyannote.core import Segment
+import torchaudio
+import json
+from whisperx.vads.pyannote import Pyannote
 
-from whisperx.diarize import Segment as SegmentX
-from whisperx.vads.vad import Vad
+from dotenv import load_dotenv
+load_dotenv()
+hf_token = os.getenv("HF_TOKEN")
 
+from ctc_forced_aligner import (
+    generate_emissions,
+    get_alignments,
+    get_spans,
+    load_alignment_model,
+    postprocess_results,
+    preprocess_text,
+)
+from deepmultilingualpunctuation import PunctuationModel
+from nemo.collections.asr.models.msdd_models import NeuralDiarizer
 
-def load_vad_model(device, vad_onset=0.500, vad_offset=0.363, use_auth_token=None, model_fp=None):
-    # Always load the pretrained model from Hugging Face hub
-    vad_model = Model.from_pretrained("pyannote/segmentation", use_auth_token=use_auth_token)
+from helpers import (
+    cleanup,
+    create_config,
+    find_numeral_symbol_tokens,
+    get_realigned_ws_mapping_with_punctuation,
+    get_sentences_speaker_mapping,
+    get_speaker_aware_transcript,
+    get_words_speaker_mapping,
+    langs_to_iso,
+    process_language_arg,
+    punct_model_langs,
+    whisper_langs,
+    write_srt,
+)
 
-    hyperparameters = {
-        "onset": vad_onset,
-        "offset": vad_offset,
-        "min_duration_on": 0.1,
-        "min_duration_off": 0.1,
-    }
+mtypes = {"cpu": "int8", "cuda": "float16"}
 
-    vad_pipeline = VoiceActivitySegmentation(segmentation=vad_model, device=torch.device(device))
-    vad_pipeline.instantiate(hyperparameters)
+# Initialize parser
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-a", "--audio", help="name of the target audio file", required=True
+)
+parser.add_argument(
+    "--no-stem",
+    action="store_false",
+    dest="stemming",
+    default=True,
+    help="Disables source separation."
+    "This helps with long files that don't contain a lot of music.",
+)
 
-    return vad_pipeline
+parser.add_argument(
+    "--suppress_numerals",
+    action="store_true",
+    dest="suppress_numerals",
+    default=False,
+    help="Suppresses Numerical Digits."
+    "This helps the diarization accuracy but converts all digits into written text.",
+)
 
-class Binarize:
-    """Binarize detection scores using hysteresis thresholding, with min-cut operation
-    to ensure not segments are longer than max_duration.
+parser.add_argument(
+    "--whisper-model",
+    dest="model_name",
+    default="medium.en",
+    help="name of the Whisper model to use",
+)
 
-    Parameters
-    ----------
-    onset : float, optional
-        Onset threshold. Defaults to 0.5.
-    offset : float, optional
-        Offset threshold. Defaults to `onset`.
-    min_duration_on : float, optional
-        Remove active regions shorter than that many seconds. Defaults to 0s.
-    min_duration_off : float, optional
-        Fill inactive regions shorter than that many seconds. Defaults to 0s.
-    pad_onset : float, optional
-        Extend active regions by moving their start time by that many seconds.
-        Defaults to 0s.
-    pad_offset : float, optional
-        Extend active regions by moving their end time by that many seconds.
-        Defaults to 0s.
-    max_duration: float
-        The maximum length of an active segment, divides segment at timestamp with lowest score.
-    Reference
-    ---------
-    Gregory Gelly and Jean-Luc Gauvain. "Minimum Word Error Training of
-    RNN-based Voice Activity Detection", InterSpeech 2015.
+parser.add_argument(
+    "--batch-size",
+    type=int,
+    dest="batch_size",
+    default=8,
+    help="Batch size for batched inference, reduce if you run out of memory, "
+    "set to 0 for original whisper longform inference",
+)
 
-    Modified by Max Bain to include WhisperX's min-cut operation
-    https://arxiv.org/abs/2303.00747
+parser.add_argument(
+    "--language",
+    type=str,
+    default=None,
+    choices=whisper_langs,
+    help="Language spoken in the audio, specify None to perform language detection",
+)
 
-    Pyannote-audio
-    """
+parser.add_argument(
+    "--device",
+    dest="device",
+    default="cuda" if torch.cuda.is_available() else "cpu",
+    help="if you have a GPU use 'cuda', otherwise 'cpu'",
+)
 
-    def __init__(
-            self,
-            onset: float = 0.5,
-            offset: Optional[float] = None,
-            min_duration_on: float = 0.0,
-            min_duration_off: float = 0.0,
-            pad_onset: float = 0.0,
-            pad_offset: float = 0.0,
-            max_duration: float = float('inf')
-    ):
+args = parser.parse_args()
+language = process_language_arg(args.language, args.model_name)
 
-        super().__init__()
+if args.stemming:
+    # Isolate vocals from the rest of the audio
 
-        self.onset = onset
-        self.offset = offset or onset
+    return_code = os.system(
+        f'python -m demucs.separate -n htdemucs --two-stems=vocals "{args.audio}" -o temp_outputs --device "{args.device}"'
+    )
 
-        self.pad_onset = pad_onset
-        self.pad_offset = pad_offset
-
-        self.min_duration_on = min_duration_on
-        self.min_duration_off = min_duration_off
-
-        self.max_duration = max_duration
-
-    def __call__(self, scores: SlidingWindowFeature) -> Annotation:
-        """Binarize detection scores
-        Parameters
-        ----------
-        scores : SlidingWindowFeature
-            Detection scores.
-        Returns
-        -------
-        active : Annotation
-            Binarized scores.
-        """
-
-        num_frames, num_classes = scores.data.shape
-        frames = scores.sliding_window
-        timestamps = [frames[i].middle for i in range(num_frames)]
-
-        # annotation meant to store 'active' regions
-        active = Annotation()
-        for k, k_scores in enumerate(scores.data.T):
-
-            label = k if scores.labels is None else scores.labels[k]
-
-            # initial state
-            start = timestamps[0]
-            is_active = k_scores[0] > self.onset
-            curr_scores = [k_scores[0]]
-            curr_timestamps = [start]
-            t = start
-            for t, y in zip(timestamps[1:], k_scores[1:]):
-                # currently active
-                if is_active:
-                    curr_duration = t - start
-                    if curr_duration > self.max_duration:
-                        search_after = len(curr_scores) // 2
-                        # divide segment
-                        min_score_div_idx = search_after + np.argmin(curr_scores[search_after:])
-                        min_score_t = curr_timestamps[min_score_div_idx]
-                        region = Segment(start - self.pad_onset, min_score_t + self.pad_offset)
-                        active[region, k] = label
-                        start = curr_timestamps[min_score_div_idx]
-                        curr_scores = curr_scores[min_score_div_idx + 1:]
-                        curr_timestamps = curr_timestamps[min_score_div_idx + 1:]
-                    # switching from active to inactive
-                    elif y < self.offset:
-                        region = Segment(start - self.pad_onset, t + self.pad_offset)
-                        active[region, k] = label
-                        start = t
-                        is_active = False
-                        curr_scores = []
-                        curr_timestamps = []
-                    curr_scores.append(y)
-                    curr_timestamps.append(t)
-                # currently inactive
-                else:
-                    # switching from inactive to active
-                    if y > self.onset:
-                        start = t
-                        is_active = True
-
-            # if active at the end, add final region
-            if is_active:
-                region = Segment(start - self.pad_onset, t + self.pad_offset)
-                active[region, k] = label
-
-        # because of padding, some active regions might be overlapping: merge them.
-        # also: fill same speaker gaps shorter than min_duration_off
-        if self.pad_offset > 0.0 or self.pad_onset > 0.0 or self.min_duration_off > 0.0:
-            if self.max_duration < float("inf"):
-                raise NotImplementedError(f"This would break current max_duration param")
-            active = active.support(collar=self.min_duration_off)
-
-        # remove tracks shorter than min_duration_on
-        if self.min_duration_on > 0:
-            for segment, track in list(active.itertracks()):
-                if segment.duration < self.min_duration_on:
-                    del active[segment, track]
-
-        return active
+    if return_code != 0:
+        logging.warning(
+            "Source splitting failed, using original audio file. "
+            "Use --no-stem argument to disable it."
+        )
+        vocal_target = args.audio
+    else:
+        vocal_target = os.path.join(
+            "temp_outputs",
+            "htdemucs",
+            os.path.splitext(os.path.basename(args.audio))[0],
+            "vocals.wav",
+        )
+else:
+    vocal_target = args.audio
 
 
-class VoiceActivitySegmentation(VoiceActivityDetection):
-    def __init__(
-            self,
-            segmentation: PipelineModel = "pyannote/segmentation",
-            fscore: bool = False,
-            use_auth_token: Union[Text, None] = None,
-            **inference_kwargs,
-    ):
+# Transcribe the audio file
 
-        super().__init__(segmentation=segmentation, fscore=fscore, use_auth_token=use_auth_token, **inference_kwargs)
+whisper_model = faster_whisper.WhisperModel(
+    args.model_name, device=args.device, compute_type=mtypes[args.device]
+)
+whisper_pipeline = faster_whisper.BatchedInferencePipeline(whisper_model)
+audio_waveform = faster_whisper.decode_audio(vocal_target)
+suppress_tokens = (
+    find_numeral_symbol_tokens(whisper_model.hf_tokenizer)
+    if args.suppress_numerals
+    else [-1]
+)
 
-    def apply(self, file: AudioFile, hook: Optional[Callable] = None) -> Annotation:
-        """Apply voice activity detection
+if args.batch_size > 0:
+    transcript_segments, info = whisper_pipeline.transcribe(
+        audio_waveform,
+        language,
+        suppress_tokens=suppress_tokens,
+        batch_size=args.batch_size,
+    )
+else:
+    transcript_segments, info = whisper_model.transcribe(
+        audio_waveform,
+        language,
+        suppress_tokens=suppress_tokens,
+        vad_filter=True,
+    )
 
-        Parameters
-        ----------
-        file : AudioFile
-            Processed file.
-        hook : callable, optional
-            Hook called after each major step of the pipeline with the following
-            signature: hook("step_name", step_artefact, file=file)
+transcript_segments = list(transcript_segments)
+print(f"[DEBUG] Number of segments: {len(transcript_segments)}")
 
-        Returns
-        -------
-        speech : Annotation
-            Speech regions.
-        """
+full_transcript = "".join(segment.text for segment in transcript_segments)
 
-        # setup hook (e.g. for debugging purposes)
-        hook = self.setup_hook(file, hook=hook)
+# Print and save the Whisper segments for debugging
+print("[DEBUG] Whisper segments:")
+print(f"[DEBUG] Number of segments: {len(transcript_segments)}")
+if not transcript_segments:
+    print("[DEBUG] transcript_segments is empty.")
+for segment in transcript_segments:
+    print(segment)
 
-        # apply segmentation model (only if needed)
-        # output shape is (num_chunks, num_frames, 1)
-        if self.training:
-            if self.CACHED_SEGMENTATION in file:
-                segmentations = file[self.CACHED_SEGMENTATION]
-            else:
-                segmentations = self._segmentation(file)
-                file[self.CACHED_SEGMENTATION] = segmentations
-        else:
-            segmentations: SlidingWindowFeature = self._segmentation(file)
+# Save Whisper segments to file
+if args.audio and transcript_segments:
+    seg_file = f"{os.path.splitext(args.audio)[0]}_whisper_segments.txt"
+    try:
+        with open(seg_file, 'w', encoding='utf-8') as f:
+            for segment in transcript_segments:
+                f.write(f"{segment.start:.2f} --> {segment.end:.2f}: {segment.text.strip()}\n")
+        print(f"[INFO] Whisper segments saved to {seg_file}")
+    except Exception as e:
+        logging.warning(f"Failed to save Whisper segments: {e}")
 
-        return segmentations
+# clear gpu vram
+del whisper_model, whisper_pipeline
+torch.cuda.empty_cache()
+
+# Forced Alignment
+alignment_model, alignment_tokenizer = load_alignment_model(
+    args.device,
+    dtype=torch.float16 if args.device == "cuda" else torch.float32,
+)
+
+emissions, stride = generate_emissions(
+    alignment_model,
+    torch.from_numpy(audio_waveform)
+    .to(alignment_model.dtype)
+    .to(alignment_model.device),
+    batch_size=args.batch_size,
+)
+
+del alignment_model
+torch.cuda.empty_cache()
+
+tokens_starred, text_starred = preprocess_text(
+    full_transcript,
+    romanize=True,
+    language=langs_to_iso[info.language],
+)
+
+segments, scores, blank_token = get_alignments(
+    emissions,
+    tokens_starred,
+    alignment_tokenizer,
+)
+
+spans = get_spans(tokens_starred, segments, blank_token)
+
+word_timestamps = postprocess_results(text_starred, spans, stride, scores)
 
 
-class Pyannote(Vad):
+# convert audio to mono for NeMo combatibility
+ROOT = os.getcwd()
+temp_path = os.path.join(ROOT, "temp_outputs")
+os.makedirs(temp_path, exist_ok=True)
+torchaudio.save(
+    os.path.join(temp_path, "mono_file.wav"),
+    torch.from_numpy(audio_waveform).unsqueeze(0).float(),
+    16000,
+    channels_first=True,
+)
 
-    def __init__(self, device, use_auth_token=None, model_fp=None, **kwargs):
-        print(">>Performing voice activity detection using Pyannote...")
-        super().__init__(kwargs['vad_onset'])
-        self.vad_pipeline = load_vad_model(device, use_auth_token=use_auth_token, model_fp=model_fp)
+# pyannote_model = PyannoteModel.from_pretrained("pyannote/segmentation-3.0", 
+#   use_auth_token=hf_token)
+# vad_pipeline = VoiceActivityDetection(segmentation=pyannote_model)
+# HYPER_PARAMETERS = {
+#     "min_duration_on": 0, # Threshold for small non_speech deletion
+#     "min_duration_off": 0.2, # Threshold for short speech segment deletion
+# }
+# vad_pipeline.instantiate(HYPER_PARAMETERS)  
+# payannote_vad = vad_pipeline(vocal_target)
 
-    def __call__(self, audio: AudioFile, **kwargs):
-        return self.vad_pipeline(audio)
+# from vad.silero import apply_vad  # Silero VAD is deprecated, now using Pyannote VAD
+'''from whisperx.vads.pyannote import VoiceActivitySegmentation
 
-    @staticmethod
-    def preprocess_audio(audio):
-        return torch.from_numpy(audio).unsqueeze(0)
 
-    @staticmethod
-    def merge_chunks(segments,
-                     chunk_size,
-                     onset: float = 0.5,
-                     offset: Optional[float] = None,
-                     ):
-        assert chunk_size > 0
-        binarize = Binarize(max_duration=chunk_size, onset=onset, offset=offset)
-        segments = binarize(segments)
-        segments_list = []
-        for speech_turn in segments.get_timeline():
-            segments_list.append(SegmentX(speech_turn.start, speech_turn.end, "UNKNOWN"))
+# Load the segmentation model
+segmentation_model = PyannoteModel.from_pretrained( "pyannote/segmentation",use_auth_token=hf_token).to(args.device)
 
-        if len(segments_list) == 0:
-            print("No active speech found in audio")
-            return []
-        assert segments_list, "segments_list is empty."
-        return Vad.merge_chunks(segments_list, chunk_size, onset, offset)
+# Perform segmentation
+HYPER_PARAMETERS = {
+    "onset": 0.5,
+    "offset": 0.363,
+    "min_duration_on": 0.1,
+    "min_duration_off": 0.1
+}
+segmentation = VoiceActivitySegmentation(segmentation=segmentation_model)
+segmentation.instantiate(HYPER_PARAMETERS)
+segmentation_output = segmentation({'uri': os.path.splitext(os.path.basename(vocal_target))[0],
+                                    'audio': vocal_target})'''
+vad_pipeline = Pyannote(
+    device=args.device,
+    use_auth_token=hf_token,
+    vad_onset=0.5,
+    vad_offset=0.363,
+)
+
+segmentation_raw = vad_pipeline({
+    "uri": os.path.splitext(os.path.basename(vocal_target))[0],
+    "audio": vocal_target
+})
+
+segmentation_output = Pyannote.merge_chunks(
+    segmentation_raw,
+    chunk_size=30,
+    onset=0.5,
+    offset=0.363
+)
+
+print(f"[DEBUG] Number of VAD segments: {len(segmentation_output)}")
+for seg in segmentation_output[:5]:  # Just print first 5
+    print(seg)
+
+mono_file_path = os.path.join(temp_path, "mono_file.wav")
+pyannote_manifest = os.path.join(temp_path, "pyannote_manifest.json")
+print(f"[DEBUG] Sample VAD segment: {segmentation_output[0]}")
+print(f"[DEBUG] Type: {type(segmentation_output[0])}")
+with open(pyannote_manifest, "w") as f:
+    for speech in segmentation_output:
+        for start, end in speech["segments"]:
+            segment = {
+                "audio_filepath": mono_file_path,
+                "offset": start,
+                "duration": end - start,
+                "label": "speech",
+                "uniq_id": "mono_file"  # Using a static ID for simplicity
+            }
+            f.write(f"{json.dumps(segment)}\n")
+    '''for speech in segmentation_output:
+        segment = {
+            "audio_filepath": mono_file_path,
+            "offset": speech[0],
+            "duration": speech[1]-speech[0],
+            "label": "speech",
+            "uniq_id": segmentation_input['uri']
+        }
+        f.write(f"{json.dumps(segment)}\n")'''
+    '''for speech in segmentation_output:
+        segment = {
+            "audio_filepath": mono_file_path,
+            "offset": speech["start"],
+            "duration": speech["end"] - speech["start"],
+            "label": "speech",
+            "uniq_id": os.path.splitext(os.path.basename(vocal_target))[0]
+        }
+        f.write(f"{json.dumps(segment)}\n")'''   
+# Initialize NeMo MSDD diarization model
+msdd_model = NeuralDiarizer(cfg=create_config(temp_path)).to(args.device)
+msdd_model._cfg.diarizer.manifest_filepath = pyannote_manifest
+msdd_model.diarize()
+
+del msdd_model
+torch.cuda.empty_cache()
+
+# Reading timestamps <> Speaker Labels mapping
+
+
+speaker_ts = []
+with open(os.path.join(temp_path, "pred_rttms", "mono_file.rttm"), "r") as f:
+    lines = f.readlines()
+    for line in lines:
+        line_list = line.split(" ")
+        s = int(float(line_list[5]) * 1000)
+        e = s + int(float(line_list[8]) * 1000)
+        speaker_ts.append([s, e, int(line_list[11].split("_")[-1])])
+
+wsm = get_words_speaker_mapping(word_timestamps, speaker_ts, "start")
+
+if info.language in punct_model_langs:
+    # restoring punctuation in the transcript to help realign the sentences
+    punct_model = PunctuationModel(model="kredor/punctuate-all")
+
+    words_list = list(map(lambda x: x["word"], wsm))
+
+    labled_words = punct_model.predict(words_list, chunk_size=230)
+
+    ending_puncts = ".?!"
+    model_puncts = ".,;:!?"
+
+    # We don't want to punctuate U.S.A. with a period. Right?
+    is_acronym = lambda x: re.fullmatch(r"\b(?:[a-zA-Z]\.){2,}", x)
+
+    for word_dict, labeled_tuple in zip(wsm, labled_words):
+        word = word_dict["word"]
+        if (
+            word
+            and labeled_tuple[1] in ending_puncts
+            and (word[-1] not in model_puncts or is_acronym(word))
+        ):
+            word += labeled_tuple[1]
+            if word.endswith(".."):
+                word = word.rstrip(".")
+            word_dict["word"] = word
+
+else:
+    logging.warning(
+        f"Punctuation restoration is not available for {info.language} language."
+        " Using the original punctuation."
+    )
+
+wsm = get_realigned_ws_mapping_with_punctuation(wsm)
+ssm = get_sentences_speaker_mapping(wsm, speaker_ts)
+
+with open(f"{os.path.splitext(args.audio)[0]}.txt", "w", encoding="utf-8-sig") as f:
+    get_speaker_aware_transcript(ssm, f)
+
+with open(f"{os.path.splitext(args.audio)[0]}.srt", "w", encoding="utf-8-sig") as srt:
+    write_srt(ssm, srt)
+
+cleanup(temp_path)
