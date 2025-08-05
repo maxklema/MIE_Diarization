@@ -1,4 +1,4 @@
-tokenizers
+tokenizers==0.19.1
 wget
 nemo_toolkit[asr]==2.0.0rc0
 nltk
