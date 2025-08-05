@@ -20,3 +20,4 @@ scipy
 cython
 cmake
 pybind11
+flask-cors
