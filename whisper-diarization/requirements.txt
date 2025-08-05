@@ -1,3 +1,4 @@
+tokenizers
 wget
 nemo_toolkit[asr]==2.0.0rc0
 nltk
@@ -19,4 +20,3 @@ scipy
 cython
 cmake
 pybind11
-rust
