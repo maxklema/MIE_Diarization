@@ -1,14 +1,15 @@
 # Use a multi-stage build for frontend and backend
 
 # Stage 1: Frontend build with Node
-FROM node:20-slim as frontend
+FROM --platform=linux/amd64 node:20-slim as frontend
 
 WORKDIR /app/diarization-ui
 
+RUN ls -la
 COPY diarization-ui/package*.json ./
-
-COPY diarization-ui/. .
 RUN npm install --legacy-peer-deps
+RUN ls -la
+COPY diarization-ui/. .
 EXPOSE 5173
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
