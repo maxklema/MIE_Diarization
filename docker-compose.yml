@@ -12,6 +12,7 @@ services:
       - ./whisper-diarization:/app/whisper-diarization
 
   frontend:
+    platform: linux/amd64
     build:
       context: .
       target: frontend
@@ -20,4 +21,5 @@ services:
     working_dir: /app/diarization-ui
     volumes:
       - ./diarization-ui:/app/diarization-ui
+      - /app/diarization-ui/node_modules  # Use container's own node_modules
     command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
