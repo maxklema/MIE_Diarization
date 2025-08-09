@@ -1,9 +1,11 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import Hover from 'wavesurfer.js/dist/plugins/hover.esm.js';
+import Timeline from 'wavesurfer.js/dist/plugins/timeline.esm.js';
 
 const Waveform = forwardRef(({ audioUrl, onFinish }, ref) => {
   const containerRef = useRef(null);
+  const timelineRef = useRef(null);
   const waveSurferRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
@@ -28,8 +30,18 @@ const Waveform = forwardRef(({ audioUrl, onFinish }, ref) => {
         Hover.create({
           lineColor: '#ef4444',
           labelBackground: 'rgba(17,24,39,0.9)',
-          labelColor: '#fff'
-        })
+          labelColor: '#fff',
+        }),
+        Timeline.create({
+          container: timelineRef.current,
+          height: 20,
+          primaryLabelInterval: 5,
+          secondaryLabelInterval: 1,
+          style: {
+            fontSize: '12px',
+            color: '#6b7280', // gray-500
+          },
+        }),
       ],
     });
 
@@ -42,7 +54,12 @@ const Waveform = forwardRef(({ audioUrl, onFinish }, ref) => {
     };
   }, [audioUrl]);
 
-  return <div ref={containerRef} className="w-full h-24" />;
+  return (
+    <div className="w-full">
+      <div ref={containerRef} className="w-full h-24" />
+      <div ref={timelineRef} className="w-full h-5 mt-1" />
+    </div>
+  );
 });
 
 export default Waveform;
