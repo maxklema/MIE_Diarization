@@ -61,6 +61,9 @@ const Waveform = forwardRef(({ audioUrl, onFinish, initialZoom = 120 }, ref) => 
 
     waveSurferRef.current = ws
 
+    const getContainerWidth = () =>
+      scrollWrapperRef.current?.clientWidth || containerRef.current?.clientWidth || 0
+
     const syncContentWidth = () => {
       // Compute width using duration * pxPerSec to ensure both waveform & timeline match
       const duration = ws.getDuration?.() || 0
@@ -72,10 +75,28 @@ const Waveform = forwardRef(({ audioUrl, onFinish, initialZoom = 120 }, ref) => 
       }
     }
 
+    const maybeAutoFit = () => {
+      const duration = ws.getDuration?.() || 0
+      if (!duration) return
+      const wrapperW = getContainerWidth()
+      if (!wrapperW) return
+
+      // If current zoom results in a width smaller than wrapper, bump zoom up to fill
+      const currentWidth = duration * (currentPxPerSecRef.current || initialZoom)
+      if (currentWidth < wrapperW) {
+        const desired = wrapperW / duration
+        // Clamp: not below initialZoom, not excessively large
+        const next = Math.min(Math.max(desired, initialZoom), 1000)
+        currentPxPerSecRef.current = next
+        ws.zoom(next)
+      }
+      syncContentWidth()
+    }
+
     ws.on('ready', () => {
-      // Defer width calc slightly so timeline has mounted
+      // Auto-fit short clips to fill the visible area
       requestAnimationFrame(() => {
-        syncContentWidth()
+        maybeAutoFit()
       })
     })
 
@@ -85,7 +106,7 @@ const Waveform = forwardRef(({ audioUrl, onFinish, initialZoom = 120 }, ref) => 
     })
 
     ws.on('redraw', syncContentWidth)
-    window.addEventListener('resize', syncContentWidth)
+    window.addEventListener('resize', maybeAutoFit)
 
     ws.load(audioUrl)
 
@@ -94,7 +115,7 @@ const Waveform = forwardRef(({ audioUrl, onFinish, initialZoom = 120 }, ref) => 
     })
 
     return () => {
-      window.removeEventListener('resize', syncContentWidth)
+      window.removeEventListener('resize', maybeAutoFit)
       waveSurferRef.current?.destroy()
     }
   }, [audioUrl, initialZoom])
