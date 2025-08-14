@@ -146,7 +146,6 @@ This is how the flow is:
     participant Demucs
     participant Whisper
     participant CTCAligner
-    participant Pyannote
     participant NeMo
     participant Punctuation
     participant Output
@@ -162,8 +161,7 @@ This is how the flow is:
     Whisper->>CTCAligner: Generate emissions & align words
     CTCAligner->>User: Word-level timestamps
 
-    User->>Pyannote: Run segmentation (VAD)
-    Pyannote->>NeMo: Extract embeddings (ECAPA-TDNN) & cluster (MSDD)
+    User->>NeMo: Run diarization (VAD, ECAPA-TDNN, MSDD)
     NeMo->>User: Speaker segment timestamps
 
     User->>NeMo: Map words to speakers
