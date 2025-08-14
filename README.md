@@ -183,24 +183,43 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-    A[Start: User provides audio file] --> B{Source Separation enabled?}
-    B -- Yes --> C[Demucs separates vocals]
-    B -- No --> D[Use original audio]
+    A["Start: user provides audio file or mic input"] --> B{Source separation enabled?}
+    B -- Yes --> C["Demucs output: vocals.wav"]
+    B -- No --> D["Use original audio"]
 
-    C --> E[Whisper Transcribes Audio]
-    D --> E
+    %% Common audio input for both branches
+    C --> X["Audio for processing"]
+    D --> X
 
-    E --> F[CTC Forced Aligner generates word-level timestamps]
-    F --> G[Pyannote Segmentation runs VAD]
-    G --> H[NeMo embeddings and clustering (ECAPA-TDNN, MSDD)]
-    H --> I[Map words to speakers]
+    %% Transcription pipeline (single pipeline: Whisper + CTC aligner)
+    subgraph Transcription
+        direction TB
+        T1["Faster-Whisper (ASR)"]
+        T2["CTC forced aligner (word-level timestamps)"]
+        T1 --> T2
+    end
+    X --> T1
 
-    I --> J{Punctuation Supported?}
-    J -- Yes --> K[Apply Punctuation]
-    J -- No --> L[Skip punctuation]
+    %% Diarization pipeline (segmentation + embeddings/clustering)
+    subgraph Diarization
+        direction TB
+        D1["Pyannote segmentation (VAD)"]
+        D2["NeMo embeddings (ECAPA-TDNN) + clustering (MSDD)"]
+        D1 --> D2
+    end
+    X --> D1
 
-    K --> M[Write .txt and .srt]
-    L --> M
+    %% Merge branches to align speakers to words
+    T2 --> M["Align speakers to words (map segments to tokens)"]
+    D2 --> M
 
-    M --> N[Return final transcript & diarized output]
+    %% Optional punctuation
+    M --> P{Punctuation enabled?}
+    P -- Yes --> P1["Apply punctuation"]
+    P -- No --> P2["Skip punctuation"]
+
+    %% Outputs
+    P1 --> O["Write outputs: txt / srt / json"]
+    P2 --> O
+    O --> R["Return diarized + transcribed results"]
 ```
