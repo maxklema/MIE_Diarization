@@ -141,11 +141,13 @@ and then run the file as stated above
 This is how the flow is:
 ## 🔄 Diarization + Transcription Pipeline (Sequence Diagram)
 
-```sequenceDiagram
+```mermaid
+sequenceDiagram
     participant User
     participant Demucs
     participant Whisper
     participant CTCAligner
+    participant Pyannote
     participant NeMo
     participant Punctuation
     participant Output
@@ -161,7 +163,8 @@ This is how the flow is:
     Whisper->>CTCAligner: Generate emissions & align words
     CTCAligner->>User: Word-level timestamps
 
-    User->>NeMo: Run diarization (VAD, ECAPA-TDNN, MSDD)
+    User->>Pyannote: Run segmentation (VAD)
+    Pyannote->>NeMo: Extract embeddings (ECAPA-TDNN) & cluster (MSDD)
     NeMo->>User: Speaker segment timestamps
 
     User->>NeMo: Map words to speakers
