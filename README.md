@@ -3,7 +3,7 @@ This is a Diarization and summarization project, which uses the Pyannote segment
 
 This project is my summer internship work, which I've worked on alone.
 
-Below are some shorts/vedios about the project and my research:
+Below are some shorts/videos about the project and my research:
 ## 🎬 Project Shorts
 
 | 🎥 Topic                                                  | 🔗 Watch                                                                 |
