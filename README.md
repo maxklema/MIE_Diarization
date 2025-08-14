@@ -181,6 +181,8 @@ sequenceDiagram
 
 ---
 
+## 🔄 Diarization + Transcription Pipeline (Flow Diagram)
+
 ```mermaid
 flowchart TD
     A["Start: user provides audio file or mic input"] --> B{Source separation enabled?}
