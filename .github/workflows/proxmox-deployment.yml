@@ -32,3 +32,4 @@ jobs:
           }'
           root_start_command: 'docker-compose -f docker-compose.deploy.yml up'
           multi_component: 'y'
+          services: '["docker"]'
