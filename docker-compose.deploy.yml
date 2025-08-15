@@ -9,6 +9,7 @@ services:
 
   frontend:
     image: ayushdh96/mie_diarization-frontend:latest
+    platform: linux/amd64
     ports:
       - "5173:5173"
     working_dir: /app/diarization-ui
