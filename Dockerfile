@@ -1,7 +1,7 @@
 # Use a multi-stage build for frontend and backend
 
 # Stage 1: Frontend build with Node
-FROM --platform=linux/amd64 node:20-slim as frontend
+FROM node:20-slim as frontend
 
 WORKDIR /app/diarization-ui
 
