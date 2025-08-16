@@ -3,6 +3,7 @@ version: "3.9"
 services:
   backend:
     image: ayushdh96/mie_diarization-backend:latest
+    platform: linux/amd64
     ports:
       - "5001:5001"
     working_dir: /app/whisper-diarization
