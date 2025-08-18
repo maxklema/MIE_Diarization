@@ -33,5 +33,5 @@ jobs:
           http_port: "5173"
           services: '["docker"]'
           root_start_command: apt-get update && apt-get install -y ffmpeg build-essential cmake libsndfile1 curl && rm -rf /var/lib/apt/lists/*
-          intstall_command: '{"/whisper-diarization": "pip install --upgrade pip && pip install -c constraints.txt -r requirements.txt", "/diarization-ui": "npm install --legacy-peer-deps"}'
+          install_command: '{"/whisper-diarization": "pip install --upgrade pip && pip install -c constraints.txt -r requirements.txt", "/diarization-ui": "npm install --legacy-peer-deps"}'
           start_command: '{"/whisper-diarization": "python app.py", "/diarization-ui": "npm run dev -- --host 0.0.0.0"}'
