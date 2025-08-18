@@ -9,7 +9,7 @@ jobs:
   setup-runner:
     runs-on: ubuntu-latest
     steps:
-      - name: Install Dependencies
+      - name: Install Dependencies!
         run: |
           sudo apt install -y sshpass jq
       - uses: maxklema/proxmox-launchpad@main
