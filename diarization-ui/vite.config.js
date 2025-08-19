@@ -6,6 +6,9 @@ import path from "path";
 export default defineConfig({
   server: {
     port: 5173,
+    proxy: {
+      "/api": "http://localhost:5001",
+    },
     host: "0.0.0.0",
     allowedHosts: ["maxklema-MIE_Diarization-main.opensource.mieweb.org"],
   },
